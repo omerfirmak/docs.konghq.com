@@ -403,7 +403,12 @@ difficulties during this phase, please refer to the [Keycloak documentation](htt
    From the **Advanced** tab, enable the **OAuth 2.0 Mutual TLS Certificate Bound Access Tokens Enabled** toggle.
 {% endif_version %}
 
-4. Create a verified user with the name: `john` and the non-temporary password: `doe` that can be used with the password grant:
+{% if_version gte:3.6.x %}
+4. (Optional, to test mTLS Client Authentication): Create another confidential client `client-tls-auth` with settings similar to the `service` client created above. 
+   From the **Credentials** tab, select the **X509 Certificate** Client Authenticator and fill the Subject DN field so that it matches the Kong client certificate's, e.g.: `CN=JohnDoe, OU=IT`.
+{% endif_version %}
+
+5. Create a verified user with the name: `john` and the non-temporary password: `doe` that can be used with the password grant:
    <br><br>
    <img src="/assets/images/products/plugins/openid-connect/keycloak-user-john.png">
 
@@ -426,9 +431,14 @@ to
 The Keycloak default `https` port conflicts with the default Kong TLS proxy port,
 and that can be a problem if both are started on the same host.
 
-{% if_version gte:3.5.x %}
+{% if_version gte:3.5.x lte:3.6.x %}
 {:.note}
 > **Note:** The mTLS proof of possession feature that validates OAuth 2.0 Mutual TLS Certificate Bound Access Tokens requires configuring Keycloak to validate client certificates using mTLS with the `--https-client-auth=request` option. For more information, see the [Keycloak documentation](https://www.keycloak.org/server/enabletls).
+{% endif_version %}
+
+{% if_version gte:3.6.x %}
+{:.note}
+> **Note:** The mTLS Client Authentication along with the proof of possession feature that validates OAuth 2.0 Mutual TLS Certificate Bound Access Tokens both require configuring Keycloak to validate client certificates with mTLS using the `--https-client-auth=request` option, and to configure TLS appropriately, including adding the trusted client certificates to the truststore. For more information, refer to the [Keycloak documentation](https://www.keycloak.org/server/enabletls).
 {% endif_version %}
 
 [keycloak]: http://www.keycloak.org/
@@ -1764,6 +1774,69 @@ Nice, as you can see the plugin even added the `X-Consumer-Id` and `X-Consumer-U
 
 > It is possible to make consumer mapping optional and non-authorizing by setting the `config.consumer_optional=true`.
 
+{% if_version gte:3.6.x %}
+## Mutual TLS Client Authentication
+
+The OpenID Connect plugin supports Mutual TLS (mTLS) Client Authentication with the IdP. When the feature is enabled, Kong establishes mTLS connections with the IdP using the configured client certificate. This is effective on the following IdP endpoints: `token`, `token introspection`, `token revocation`.
+
+### Auth Server Configuration
+
+The feature requires the IdP to be enabled to use mTLS and X.509 client certificate authentication. For configuring this in Keycloak, refer to the [Keycloak configuration](#keycloak-configuration) section above. For different Auth servers, refer to their documentation to configure this functionality.
+
+### Certificates
+
+Ensure the client certificate that Kong will use for mTLS connections is configured:
+
+```bash
+http -f post :8001/certificates cert@crt.pem key@key.pem
+```
+```json
+{
+    "cert": "-----BEGIN CERTIFICATE-----...",
+    "id": "1e0721c1-fd43-494c-9864-007bbba98c8c",
+    "key": "-----BEGIN PRIVATE KEY-----...",
+}
+```
+
+### Kong configuration
+
+* Set the client Authentication methods appropriately, refer to the Configuration reference sections:
+	* [client_auth](/hub/kong-inc/openid-connect/configuration/#config-client_auth)
+	* [token_endpoint_auth_method](/hub/kong-inc/openid-connect/configuration/#config-token_endpoint_auth_method)
+	* [introspection_endpoint_auth_method](/hub/kong-inc/openid-connect/configuration/#config-introspection_endpoint_auth_method)
+	* [revocation_endpoint_auth_method](/hub/kong-inc/openid-connect/configuration/#config-revocation_endpoint_auth_method)
+* Configure the client certificate ID as a value for the `tls_client_auth_cert_id` field as described in the [Configuration reference](/hub/kong-inc/openid-connect/configuration/#config-tls_client_auth_cert_id).
+
+#### SSL Verify
+
+The configuration option: [`tls_client_auth_ssl_verify`](/hub/kong-inc/openid-connect/configuration/#config-tls_client_auth_ssl_verify) controls whether the server (IdP) certificate is verified.
+
+When set to `true` (the default value), ensure [trusted certificate](/gateway/latest/reference/configuration/#lua_ssl_trusted_certificate) and [verify depth](/gateway/latest/reference/configuration/#lua_ssl_verify_depth) are appropriately configured so that the IdP's server certificate is trusted by Kong and the handshake can be performed successfully.
+
+### Testing
+
+1. Set up the plugin using the `client_auth` and `tls_client_auth_cert_id` configuration options:
+
+```bash
+http -f put :8001/plugins/5f35b796-ced6-4c00-9b2a-90eef745f4f9 \
+name=openid-connect \
+service.name=openid-connect \ config.issuer=https://keycloak.test:8440/auth/realms/master \ 
+config.client_id=client-tls-auth \
+config.auth_methods=password \
+config.client_auth=tls_client_auth \
+config.tls_client_auth_cert_id=1e0721c1-fd43-494c-9864-007bbba98c8c
+```
+
+2. Access the service using the `password` auth method, Kong will access the IdP's token endpoint using the mTLS Client Authentication with the configured certificate:
+```bash
+http -v -a john:doe :8000
+```
+
+3. Confirm the response status code is 200:
+```http
+    HTTP/1.1 200 OK
+```
+{% endif_version %}
 {% if_version gte:3.5.x %}
 ## Certificate-Bound Access Tokens
 
