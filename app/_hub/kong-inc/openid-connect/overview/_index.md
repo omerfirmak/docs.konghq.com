@@ -1777,7 +1777,18 @@ Nice, as you can see the plugin even added the `X-Consumer-Id` and `X-Consumer-U
 {% if_version gte:3.6.x %}
 ## Mutual TLS Client Authentication
 
-The OpenID Connect plugin supports Mutual TLS (mTLS) Client Authentication with the IdP. When the feature is enabled, Kong establishes mTLS connections with the IdP using the configured client certificate. This is effective on the following IdP endpoints: `token`, `token introspection`, `token revocation`.
+The OpenID Connect plugin supports Mutual TLS (mTLS) Client Authentication with the IdP. When the feature is enabled, Kong establishes mTLS connections with the IdP using the configured client certificate. The compatible IdP endpoints are listed below along with the corresponding flows that the feature is intended to work with:
+
+* `token`
+  * [Authorization Code Flow](#authorization-code-flow)
+  * [Password Grant](#password-grant)
+  * [Refresh Token Grant](#refresh-token-grant)
+* `introspection`
+  * [Introspection Authentication flow](#introspection-authentication)
+* `revocation`
+  * [Session Authentication](#session-authentication)
+
+For all these endpoints and for the flows supported, the plugin uses mTLS Client Authentication as the authentication method when communicating with the IdP, for example, to fetch the token from the token endpoint.
 
 ### Auth Server Configuration
 
