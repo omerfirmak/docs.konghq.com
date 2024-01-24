@@ -135,7 +135,7 @@ Field         | Description                                             | Dataty
 `name` <br>*required*         | StatsD metric's name.                      | String   | [Metrics](#metrics)          
 `stat_type`  <br>*required*     | Determines what sort of event a metric represents.  | String   | `gauge`, `timer`, `counter`, `histogram`, `meter` and `set`|
 `sample_rate`<br>*required* <br>*conditional*   | Sampling rate.              | Number        | `number`                 
-`consumer_identifier`<br>*conditional* | Authenticated user detail.  | String   | One of the following options: `consumer_id`, `custom_id`, `username`, `null`
+`consumer_identifier`<br>*conditional* | Authenticated user detail.  | String   | One of the following options: `consumer_id`, `custom_id`, `username`, `credential`, `null`
 {% if_plugin_version gte:3.0.x %}
 `service_identifier`<br>*conditional* | Service detail.  | String   |  One of the following options: `service_id`, `service_name`, `service_host`, `service_name_or_host`, `null`
 `workspace_identifier`<br>*conditional* | Workspace detail.  | String | One of the following options:`workspace_id`, `workspace_name`, `null`
